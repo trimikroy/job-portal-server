@@ -32,9 +32,10 @@ async function run() {
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
 
         // jobs related apis
-        const jobsCollection = client.db('jobPortal').collection('jobs')
+        const jobsCollection = client.db('jobPortal').collection('jobs');
+        const jobApplicationCollection = client.db('jobPortal').collection('job-applications')
 
-        
+
         app.get('/jobs', async (req, res) => {
             const cursor = jobsCollection.find();
             const result = await cursor.toArray();
@@ -43,19 +44,53 @@ async function run() {
 
         app.get('/jobs/:id', async (req, res) => {
             const id = req.params.id;
-            const query = {_id: new ObjectId(id)};
+            const query = { _id: new ObjectId(id) };
             const result = await jobsCollection.findOne(query);
             res.send(result);
-        }) 
+        })
+
+        //get all data, get some data, get one data [0, 1, many]
+        app.get('/job-application', async (req, res) => {
+            const email = req.query.email;
+            const query = {
+                application_email: email
+            };
+            const result = await jobApplicationCollection.find(query).toArray();
+
+            // aggregate data to fokira way
+            for(const application of result){
+                console.log(application.job_id);
+                const query1 = {_id: new ObjectId(application.job_id)}
+                const job = await jobsCollection.findOne(query1)
+
+                if(job){
+                    application.title = job.title;
+                    application.company = job.company;
+                    application.company_logo = job.company_logo;
+                    application.location = job.location;
+                    
+
+                }
+            }
 
 
+            res.send(result);
+        })
+
+        //job application 
+        app.post('/job-applications', async (req, res) => {
+            const application = req.body;
+            const result = await jobApplicationCollection.insertOne(application);
+            res.send(result);
+        });
 
 
+      
 
 
     } finally {
         // Ensures that the client will close when you finish/error
-       // await client.close();
+        // await client.close();
     }
 }
 run().catch(console.dir);
